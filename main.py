@@ -1,7 +1,10 @@
-from sklearn import svm
-import sys
 import numpy as np
+from sklearn import svm, tree
+from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier
+import sys
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
 from datetime import datetime
 
 TIME_FORMAT = "%Y/%m/%d %H:%M:%S.%f"
@@ -32,8 +35,10 @@ class Summarizer:
         }
         self.is_attack = 0  # would be 1 if it is an attack, set 0 by default
         self._duration = 0
+        self.used = False
 
     def add(self, item):
+        self.used = True
         self.data['n_conn'] += 1
 
         proto = 'n_%s' % item['proto']
@@ -88,6 +93,34 @@ def classify(ip):
     return 'na'
 
 
+def train_and_test_with(summaries, clf):
+    """
+        clf: the machine learning algorithm being used
+    """
+
+    features = np.array([s.data.values() for s in summaries]);
+    labels = np.array([s.is_attack for s in summaries])
+
+    feat_train, feat_test, label_train, label_test = train_test_split(
+        features, labels, test_size=0.5, random_state=42)
+
+    clf.fit(feat_train, label_train)
+    result = {}
+
+    result['score'] = clf.score(feat_test, label_test)
+    predicted_labels = clf.predict(feat_test)
+
+    result['recall']    = recall_score(label_test, predicted_labels)
+    result['accuracy']  = accuracy_score(label_test, predicted_labels)
+    result['precision'] = precision_score(label_test, predicted_labels)
+    result['support'] = sum(labels)
+    result['normal count'] = len(labels) - result['support']
+    result['training size'] = len(feat_train)
+
+    return  result
+
+
+
 def train_and_test_with_svm(summaries):
     features = np.array([s.data.values() for s in summaries])
     labels = np.array([s.is_attack for s in summaries])
@@ -101,41 +134,44 @@ def train_and_test_with_svm(summaries):
     return clf.score(feat_test, label_test), labels
 
 
-def review_data(interval, start, max_windows, file_name):
+def review_data(interval, start, file_name):
     """ Aggregate the data within the windows of time and
         train them using SVM to detect whether a network is
         under attack.
 
         interval:       time in seconds to aggregate data
         start:          start time to record data
-        max_windows:    amount of windows to record
         file_name:      which file to record
 
         returns: score of the 50-50 test train and labels
                  of the data recorded.
     """
-    summaries = [Summarizer() for _ in xrange(max_windows + 1)]
+    summaries = [Summarizer() for _ in xrange(10)]
     with open(file_name, 'r+') as data:
         headers = data.readline().strip().lower().split(',')
         for line in data:
             args = line.strip().split(',')
             time = datetime.strptime(args[0], TIME_FORMAT)
             window = int((time - start).total_seconds() / interval)
-            if 0 <= window <= max_windows:
-                item = dict(zip(headers, args))
-                summaries[window].add(item)
-
-    return train_and_test_with_svm(summaries)
+            if window < 0:
+                continue
+            if window >= len(summaries):
+                for i in xrange(window+1):
+                    summaries.append(Summarizer())
+            item = dict(zip(headers, args))
+            summaries[window].add(item)
+    summaries = [s for s in summaries if s.used]
+    clf = svm.SVC()
+    return train_and_test_with(summaries, clf)
 
 
 if __name__ == '__main__':
-    start_time = '2011/08/15 17:10:20.0'
-    interval = 20
-    total_windows = 60
+    start_time = '2011/08/16 09:08:00.0'
+    interval = 1  # in seconds
     file_name = 'capture20110815-3.binetflow'
     start = datetime.strptime(start_time, TIME_FORMAT)
 
-    score, labels = review_data(interval, start, total_windows, file_name)
+    args = review_data(interval, start, file_name)
 
     f_name = 'out.txt'
     if len(sys.argv) > 1:
@@ -145,8 +181,7 @@ if __name__ == '__main__':
         result = 'on file %s\n' % file_name
         result += 'start time = %s\n' % start_time
         result += 'window size = %ds\n' % interval
-        result += 'labels = %s\n' % str(labels)
-        result += 'training size = %d\n' % total_windows
-        result += 'score is %f%%\n' % score
+        for key, value in sorted(args.iteritems()):
+            result += '%s = %s\n' % (key, value)
         print result
         out.write(result)
