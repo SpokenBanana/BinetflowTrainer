@@ -134,7 +134,7 @@ def train_and_test_with_svm(summaries):
     return clf.score(feat_test, label_test), labels
 
 
-def review_data(interval, start, file_name):
+def review_data(interval, start, file_name, model):
     """ Aggregate the data within the windows of time and
         train them using SVM to detect whether a network is
         under attack.
@@ -161,8 +161,7 @@ def review_data(interval, start, file_name):
             item = dict(zip(headers, args))
             summaries[window].add(item)
     summaries = [s for s in summaries if s.used]
-    clf = svm.SVC()
-    return train_and_test_with(summaries, clf)
+    return train_and_test_with(summaries, model)
 
 
 if __name__ == '__main__':
@@ -171,7 +170,11 @@ if __name__ == '__main__':
     file_name = 'capture20110815-3.binetflow'
     start = datetime.strptime(start_time, TIME_FORMAT)
 
-    args = review_data(interval, start, file_name)
+    clf = svm.SVC()
+    # dtclf = tree.DecisionTreeClassifier()
+    # nbclf = GaussianNB()
+    # rfclf = RandomForestClassifier()
+    args = review_data(interval, start, file_name, clf)
 
     f_name = 'out.txt'
     if len(sys.argv) > 1:
