@@ -97,7 +97,7 @@ def classify(ip):
 
 def train_and_test_with(summaries, classifier):
     """
-        clf: the str rep machine learning algorithm being used
+        classifier: the str rep machine learning algorithm being used
     """
     if classifier == 'svm':
         clf = svm.SVC()
