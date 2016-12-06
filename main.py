@@ -8,9 +8,19 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score, precision_score, \
     recall_score
 from datetime import datetime
+from utils import *
+from joblib import Parallel, delayed
+import time
 
-TIME_FORMAT = "%Y/%m/%d %H:%M:%S.%f"
-
+"""
+Notes:
+    look a step ahead.
+    Look at all 13 files (with dt and rf only)
+    look at all files together and run analysis with bot type (instead of file)
+    tensorflow, layers
+    count support, test for each label
+    to ipython notebook
+"""
 
 class Summarizer:
     def __init__(self):
@@ -77,103 +87,60 @@ class Summarizer:
         self.data['n_s_%s_p_address' % classify(item['srcaddr'])] += 1
         self.data['n_d_%s_p_address' % classify(item['dstaddr'])] += 1
 
-
-def classify(ip):
-    parts = ip.split('.')
-    try:
-        first = int(parts[0])
-    except Exception:
-        return 'na'
-
-    # TODO: write a better way to classify this.
-    if 1 <= first <= 126:
-        return 'a'
-    elif 128 <= first <= 191:
-        return 'b'
-    elif 192 <= first <= 223:
-        return 'c'
-    return 'na'
-
-
-def train_and_test_with(summaries, classifier):
+def train_and_test_with(features, labels, classifier):
     """
         classifier: the str rep machine learning algorithm being used
     """
-    if classifier == 'svm':
-        clf = svm.SVC()
-    elif classifier == 'dt':
-        clf = tree.DecisionTreeClassifier()
-    elif classifier == 'nb':
-        clf = GaussianNB()
-    elif classifier == 'rf':
-        clf = RandomForestClassifier()
-    else:
-        print('classifier not valid')
-        return {}
-
-    features = np.array([s.data.values() for s in summaries])
-    labels = np.array([s.is_attack for s in summaries])
+    clf = get_classifier(classifier)
 
     feat_train, feat_test, label_train, label_test = train_test_split(
         features, labels, test_size=0.5, random_state=42)
 
     clf.fit(feat_train, label_train)
-    result = {'score': clf.score(feat_test, label_test)}
 
     predicted_labels = clf.predict(feat_test)
-
+    attack_train = sum(label_train)
+    attack_test = sum(label_test)
+    result = {}
     result['recall'] = recall_score(label_test, predicted_labels)
     result['accuracy'] = accuracy_score(label_test, predicted_labels)
     result['precision'] = precision_score(label_test, predicted_labels)
     result['f1 score'] = f1_score(label_test, predicted_labels)
-    result['support'] = sum(labels)
+    result['attacks'] = sum(labels)
     result['normal count'] = len(labels) - result['support']
     result['training size'] = len(feat_train)
-
+    result['1'] = '%s, %s' % (attack_train,  attack_test)
+    result['0'] = '%s, %s' % (len(label_train)-attack_train,
+                              len(label_test) - attack_test)
     return result
 
 
-def pickle_summarized_data(interval, time, file_name, summary=None):
-    slug_time_chars = [':', ' ', '/', '.']
-    for slug in slug_time_chars:
-        time = time.replace(slug, '_')
-    directory = 'saved_data/'
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    f_name = 'saved_%ss_%s_%s.pk1' % (interval, get_file_num(file_name), time)
-    with open('%s%s' % (directory, f_name), 'wb') as f:
-        if summary is None:
-            start = datetime.strptime(start_time, TIME_FORMAT)
-            summary = review_data(interval, start, file_name)
-        pickle.dump(summary, f, pickle.HIGHEST_PROTOCOL)
+def train_and_test_step(features, labels, classifier, step):
+    correct = 0
+    clf = get_classifier(classifier)
+
+    for i in range(len(features) - step):
+        clf.fit([features[i]], [labels[i]])
+        if labels[i+step] == clf.predict([features[i+step]]):
+            correct += 1
+
+    return correct / (len(features) - step)
 
 
-def get_saved_data(interval, time, file_name):
-    slug_time_chars = [':', ' ', '/', '.']
-    for slug in slug_time_chars:
-        time = time.replace(slug, '_')
-    f_name = 'saved_%ss_%s_%s.pk1' % (interval, get_file_num(file_name), time)
-    directory = 'saved_data/'
-    pickled_data_path = '%s%s' % (directory, f_name)
-    if not os.path.isfile(pickled_data_path):
-        return None
-
-    with open(pickled_data_path, 'rb') as f:
-        summaries = pickle.load(f)
-    return summaries
-
-
-def review_data(interval, start, file_name):
+def aggregate_file(interval, file_name, start=None):
     """ Aggregate the data within the windows of time
 
         interval:       time in seconds to aggregate data
-        start:          start time to record data
         file_name:      which file to record
+        start:          start time to record data, if none given then it starts
+                        from te beginning.
 
-        returns: score of the 50-50 test train and labels
-                 of the data recorded.
+        returns: array of the aggregated data in each interval
     """
-    summaries = [Summarizer() for _ in xrange(10)]
+    if start is None:
+        start = datetime.strptime(get_start_time_for(file_name), TIME_FORMAT)
+
+    summaries = [Summarizer() for _ in range(10)]
     with open(file_name, 'r+') as data:
         headers = data.readline().strip().lower().split(',')
         for line in data:
@@ -183,42 +150,22 @@ def review_data(interval, start, file_name):
             if window < 0:
                 continue
             if window >= len(summaries):
-                for i in xrange(window + 1):
+                for i in range(window + 1):
                     summaries.append(Summarizer())
             item = dict(zip(headers, args))
             summaries[window].add(item)
     return [s for s in summaries if s.used]
 
-
-def save_results(destination_path, file_name, start_time, interval, args,
-                 print_contents=False):
-    with open(destination_path, 'w+') as out:
-        result = 'on file %s\n' % file_name
-        result += 'start time = %s\n' % start_time
-        result += 'window size = %ds\n' % interval
-        for key, value in sorted(args.iteritems()):
-            result += '%s = %s\n' % (key, value)
-        if print_contents:
-            print result
-        out.write(result)
-
-
-def get_file_num(file_name):
-    """ Get the ending file number in the files, these are all that is
-        really needed to distinguish between files at a glance
-    """
-    base = file_name.split('.')[0]
-    dash_split = base.split('-')
-
-    if len(dash_split) == 1:
-        return dash_split[0][-2:]
-    return '%s-%s' % (dash_split[0][-2:], dash_split[1])
+def aggregate_and_pickle(interval, file_name, start=None):
+    summary = aggregate_file(interval, file_name, start)
+    pickle_summarized_data(interval, start_time, file_name, summary)
+    return summary
 
 
 def run_analysis_with(interval, start_time, file_name, use_pickle=False):
     start = datetime.strptime(start_time, TIME_FORMAT)
     file_num = get_file_num(file_name)
-    directory = 'run_of_%s_%s/' % (file_num, start_time.split(' ')[1][:2])
+    directory = 'runs_of_%ss/' % interval
 
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -226,35 +173,41 @@ def run_analysis_with(interval, start_time, file_name, use_pickle=False):
     mls = ['dt', 'rf', 'nb', 'svm']
 
     if use_pickle:
-        print 'loading pickle'
+        print('loading pickle')
         summaries = get_saved_data(interval, start_time, file_name)
         if summaries is None:
-            print 'failed to load pickle. Aggregating data'
-            summaries = review_data(interval, start, file_name)
-            print 'finished aggregating, pickling data...'
-            pickle_summarized_data(interval, start_time, file_name,
-                                   summary=summaries)
-            print 'data pickled'
+            print('failed to load pickle. Aggregating data')
+            summaries = aggregate_file(interval, start, file_name)
+            print('finished aggregating, pickling data...')
+            pickle_summarized_data(interval, start_time, file_name, summaries)
+            print('data pickled')
         else:
-            print 'loaded picke'
+            print('loaded picke')
     else:
-        print 'aggregating data'
-        summaries = review_data(interval, start, file_name)
-        print 'finished aggregating, pickling data...'
-        pickle_summarized_data(interval, start_time, file_name,
-                               summary=summaries)
-        print 'data pickled'
+        print('aggregating data')
+        summaries = aggregate_file(interval, start, file_name)
+        print('finished aggregating, pickling data...')
+        pickle_summarized_data(interval, start_time, file_name, summaries)
+        print('data pickled')
 
+    features = np.array([s.data.values() for s in summaries])
+    labels = np.array([s.is_attack for s in summaries])
     for ml in mls:
-        print 'testing with %s' % ml
-        result = train_and_test_with(summaries, ml)
-        path = '%srun_%ds_%s_%s.txt' % (directory, interval, file_num, ml)
+        print('testing with %s' % ml)
+        result = train_and_test_with(features, labels, ml)
+        path = '%srun_%s_%s.txt' % (directory, file_num, ml)
         save_results(path, file_name, start_time, interval, result)
 
 
 if __name__ == '__main__':
-    start_time = '2011/08/16 01:08:00.0'
+    start_time = '2011/08/16 09:08:00.0'
     interval = 1  # in seconds
     file_name = 'capture20110815-3.binetflow'
 
-    run_analysis_with(interval, start_time, file_name, use_pickle=True)
+    binet_files = get_binetflow_files()
+
+    start = time.time()
+    Parallel(n_jobs=3)(delayed(aggregate_and_pickle)(60, binet) for binet in binet_files)
+    end = time.time()
+    print(end - start)
+
