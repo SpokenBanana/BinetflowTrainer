@@ -180,8 +180,10 @@ def train_with_tensorflow(features, labels):
 
         sess.run(tf.global_variables_initializer())
         y = tf.matmul(x, W) + b
-        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y, y_))
-        train_step = tf.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)
+        cross_entropy = tf.reduce_mean(
+                tf.nn.softmax_cross_entropy_with_logits(y, y_))
+        train_step = tf.train.GradientDescentOptimizer(
+                0.5).minimize(cross_entropy)
 
         labels = to_tf_label(labels) 
         train_step.run(feed_dict={x: features, y_: labels})
@@ -259,16 +261,11 @@ def tensorflow_analysis(interval, file_name, start=None):
 
 if __name__ == '__main__':
     all_intervals = [5, 10, 20, 30, 60]
-    # start_time = '2011/08/16 09:08:00.0'
-    # file_name = 'capture20110815-3.binetflow'
     interval = 5  # in seconds
 
     binet_files = get_binetflow_files()
-    # run_analysis_with(5, binet_files[0])
-    # Parallel(n_jobs=3)(delayed(aggregate_and_pickle)(60, binet) for binet in binet_files)
 
     for binet in binet_files:
         for i in all_intervals:
             tensorflow_analysis(i, binet)
 
-    #Parallel(n_jobs=3)(delayed(tensorflow_analysis)(i, binet) for binet in binet_files for i in all_intervals)
