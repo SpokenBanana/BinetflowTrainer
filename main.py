@@ -13,16 +13,6 @@ from joblib import Parallel, delayed
 import tensorflow as tf
 
 
-"""
-Notes:
-    look a step ahead.
-    Look at all 13 files (with dt and rf only)
-    look at all files together and run analysis with bot type (instead of file)
-    tensorflow, layers
-    count support, test for each label
-    to ipython notebook
-"""
-
 class Summarizer:
     def __init__(self):
         self.data = {
