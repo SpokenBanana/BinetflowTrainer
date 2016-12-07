@@ -10,7 +10,8 @@ from sklearn.metrics import f1_score, accuracy_score, precision_score, \
 from datetime import datetime
 from utils import *
 from joblib import Parallel, delayed
-import time
+import tensorflow as tf
+
 
 """
 Notes:
@@ -107,7 +108,7 @@ def train_and_test_with(features, labels, classifier):
     result['precision'] = precision_score(label_test, predicted_labels)
     result['f1 score'] = f1_score(label_test, predicted_labels)
     result['attacks'] = sum(labels)
-    result['normal count'] = len(labels) - result['support']
+    result['normal count'] = len(labels) - result['attacks']
     result['training size'] = len(feat_train)
     result['1'] = '%s, %s' % (attack_train,  attack_test)
     result['0'] = '%s, %s' % (len(label_train)-attack_train,
@@ -138,8 +139,9 @@ def aggregate_file(interval, file_name, start=None):
         returns: array of the aggregated data in each interval
     """
     if start is None:
-        start = datetime.strptime(get_start_time_for(file_name), TIME_FORMAT)
+        start = get_start_time_for(file_name)
 
+    start = datetime.strptime(start, TIME_FORMAT)
     summaries = [Summarizer() for _ in range(10)]
     with open(file_name, 'r+') as data:
         headers = data.readline().strip().lower().split(',')
@@ -157,12 +159,44 @@ def aggregate_file(interval, file_name, start=None):
     return [s for s in summaries if s.used]
 
 def aggregate_and_pickle(interval, file_name, start=None):
+    if start is None:
+        start = get_start_time_for(file_name)
+
     summary = aggregate_file(interval, file_name, start)
-    pickle_summarized_data(interval, start_time, file_name, summary)
+    pickle_summarized_data(interval, start, file_name, summary)
     return summary
 
 
-def run_analysis_with(interval, start_time, file_name, use_pickle=False):
+def train_with_tensorflow(features, labels):
+    correctness = 0
+    with tf.Session() as sess:
+        # sess = tf.InteractiveSession()
+
+        x = tf.placeholder(tf.float32, shape=[None, 19])
+        y_ = tf.placeholder(tf.float32, shape=[None, 2])
+
+        W = tf.Variable(tf.zeros([19, 2]))
+        b = tf.Variable(tf.zeros([2]))
+
+        sess.run(tf.global_variables_initializer())
+        y = tf.matmul(x, W) + b
+        cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y, y_))
+        train_step = tf.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)
+
+        labels = to_tf_label(labels) 
+        train_step.run(feed_dict={x: features, y_: labels})
+
+        correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        correctness = accuracy.eval(feed_dict={x: features, y_: labels})
+
+    return correctness 
+
+
+def run_analysis_with(interval, file_name, start_time=None, use_pickle=True):
+    if start_time is None:
+        start_time = get_start_time_for(file_name)
+
     start = datetime.strptime(start_time, TIME_FORMAT)
     file_num = get_file_num(file_name)
     directory = 'runs_of_%ss/' % interval
@@ -170,14 +204,15 @@ def run_analysis_with(interval, start_time, file_name, use_pickle=False):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    mls = ['dt', 'rf', 'nb', 'svm']
+    mls = ['dt', 'rf']
 
+    print('starting %d %s' % (interval, file_name))
     if use_pickle:
         print('loading pickle')
         summaries = get_saved_data(interval, start_time, file_name)
         if summaries is None:
             print('failed to load pickle. Aggregating data')
-            summaries = aggregate_file(interval, start, file_name)
+            summaries = aggregate_file(interval, file_name, start)
             print('finished aggregating, pickling data...')
             pickle_summarized_data(interval, start_time, file_name, summaries)
             print('data pickled')
@@ -185,29 +220,55 @@ def run_analysis_with(interval, start_time, file_name, use_pickle=False):
             print('loaded picke')
     else:
         print('aggregating data')
-        summaries = aggregate_file(interval, start, file_name)
+        summaries = aggregate_file(interval, file_name, start)
         print('finished aggregating, pickling data...')
         pickle_summarized_data(interval, start_time, file_name, summaries)
         print('data pickled')
 
-    features = np.array([s.data.values() for s in summaries])
-    labels = np.array([s.is_attack for s in summaries])
+    features, labels = get_feature_labels(summaries)
     for ml in mls:
         print('testing with %s' % ml)
         result = train_and_test_with(features, labels, ml)
         path = '%srun_%s_%s.txt' % (directory, file_num, ml)
         save_results(path, file_name, start_time, interval, result)
 
+def tensorflow_analysis(interval, file_name, start=None):
+    if start is None:
+        start_time = get_start_time_for(file_name)
+
+    start = datetime.strptime(start_time, TIME_FORMAT)
+    file_num = get_file_num(file_name)
+    directory = 'runs_of_%ss/' % interval
+
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    print('starting %d %s' %  (interval, file_name))
+    summaries = get_saved_data(interval, start_time, file_name)
+    if summaries is None:
+        summaries = aggregate_and_pickle(interval, file_name, start_time)
+
+    features, labels = get_feature_labels(summaries)
+    
+    print('Running tensorflow...')
+    accuracy = train_with_tensorflow(features, labels)
+    print('Done.')
+    
+    path = '%srun_%s_tf.txt' % (directory, file_num)
+    save_results(path, file_name, start_time, interval, {'accuracy': accuracy})
 
 if __name__ == '__main__':
-    start_time = '2011/08/16 09:08:00.0'
-    interval = 1  # in seconds
-    file_name = 'capture20110815-3.binetflow'
+    all_intervals = [5, 10, 20, 30, 60]
+    # start_time = '2011/08/16 09:08:00.0'
+    # file_name = 'capture20110815-3.binetflow'
+    interval = 5  # in seconds
 
     binet_files = get_binetflow_files()
+    # run_analysis_with(5, binet_files[0])
+    # Parallel(n_jobs=3)(delayed(aggregate_and_pickle)(60, binet) for binet in binet_files)
 
-    start = time.time()
-    Parallel(n_jobs=3)(delayed(aggregate_and_pickle)(60, binet) for binet in binet_files)
-    end = time.time()
-    print(end - start)
+    for binet in binet_files:
+        for i in all_intervals:
+            tensorflow_analysis(i, binet)
 
+    #Parallel(n_jobs=3)(delayed(tensorflow_analysis)(i, binet) for binet in binet_files for i in all_intervals)

@@ -35,7 +35,7 @@ def save_results(destination_path, file_name, start_time, interval, args,
         result = 'on file %s\n' % file_name
         result += 'start time = %s\n' % start_time
         result += 'window size = %ds\n' % interval
-        for key, value in sorted(args.iteritems()):
+        for key, value in sorted(args.items()):
             result += '%s = %s\n' % (key, value)
         if print_contents:
             print(result)
@@ -103,6 +103,15 @@ def get_feature_labels(summaries):
     features = np.array([list(s.data.values()) for s in summaries])
     labels = np.array([s.is_attack for s in summaries])
     return features, labels
+
+def to_tf_label(labels):
+    tf_labels = []
+    for label in labels:
+        if label == 1:
+            tf_labels.append([0, 1])
+        else:
+            tf_labels.append([1, 0])
+    return tf_labels
 
 def get_start_time_for(file_name):
     time = ''
