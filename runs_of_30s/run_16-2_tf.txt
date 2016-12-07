@@ -1,0 +1,4 @@
+on file capture20110816-2.binetflow
+start time = 2011/08/16 13:52:03.078339
+window size = 30s
+accuracy = 0.857143

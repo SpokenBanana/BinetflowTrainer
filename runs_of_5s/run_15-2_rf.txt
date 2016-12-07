@@ -1,0 +1,12 @@
+on file capture20110815-2.binetflow
+start time = 2011/08/15 16:43:28.078942
+window size = 5s
+0 = 77, 86
+1 = 103, 94
+accuracy = 0.816666666667
+attacks = 197
+f1 score = 0.830769230769
+normal count = 163
+precision = 0.80198019802
+recall = 0.86170212766
+training size = 180

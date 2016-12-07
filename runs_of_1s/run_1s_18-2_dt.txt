@@ -1,0 +1,11 @@
+on file data/capture20110818-2.binetflow
+start time = 2011/08/18 15:40:53.826372
+window size = 1s
+accuracy = 0.939461883408
+f1 score = 0.761061946903
+normal count = 775
+precision = 0.741379310345
+recall = 0.781818181818
+score = 0.939461883408
+support = 117
+training size = 446
