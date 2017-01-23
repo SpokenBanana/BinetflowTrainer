@@ -4,29 +4,9 @@ from sklearn import svm, tree
 from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import RandomForestClassifier
 import os
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score, accuracy_score, precision_score, \
-    recall_score
-from datetime import datetime
+from summarizer import Summarizer
 
 TIME_FORMAT = "%Y/%m/%d %H:%M:%S.%f"
-
-
-def classify(ip):
-    parts = ip.split('.')
-    try:
-        first = int(parts[0])
-    except Exception:
-        return 'na'
-
-    # TODO: write a better way to classify this.
-    if 1 <= first <= 126:
-        return 'a'
-    elif 128 <= first <= 191:
-        return 'b'
-    elif 192 <= first <= 223:
-        return 'c'
-    return 'na'
 
 
 def save_results(destination_path, file_name, start_time, interval, args,
@@ -95,14 +75,41 @@ def get_saved_data(interval, time, file_name):
         summaries = pickle.load(f)
     return summaries
 
+
 def get_binetflow_files():
-    return [f for f in os.listdir(".") if f[-9:] == 'binetflow']
+    binet_files = [f for f in os.listdir(".") if f[-9:] == 'binetflow']
+    binet_files = sorted(binet_files)
+    files = []
+    # get the files in the order they should be in
+    order = [0, 1, 2, 5, 3, 8, 6, 7, 9, 11, 10, 12, 4]
+    for o in order:
+        files.append(binet_files[o])
+    return files
+
+
+def get_files_with_bot(bot):
+    if bot == 'Neris':
+        return [1, 2, 9]
+    if bot == 'Rbot':
+        return [3, 4, 10, 11]
+    if bot == 'Virut':
+        return [5, 8]
+    if bot == 'Menti':
+        return [6]
+    if bot == 'Sogou':
+        return [7]
+    if bot == 'Murlo':
+        return [8]
+    if bot == 'NSIS.ay':
+        return [12]
+    return []
 
 
 def get_feature_labels(summaries):
     features = np.array([list(s.data.values()) for s in summaries])
     labels = np.array([s.is_attack for s in summaries])
     return features, labels
+
 
 def to_tf_label(labels):
     tf_labels = []
@@ -112,6 +119,7 @@ def to_tf_label(labels):
         else:
             tf_labels.append([1, 0])
     return tf_labels
+
 
 def get_start_time_for(file_name):
     time = ''

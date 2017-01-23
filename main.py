@@ -1,86 +1,20 @@
-import numpy as np
-import pickle
-from sklearn import svm, tree
-from sklearn.naive_bayes import GaussianNB
-from sklearn.ensemble import RandomForestClassifier
 import os
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score, precision_score, \
     recall_score
 from datetime import datetime
-from utils import *
-from joblib import Parallel, delayed
+from utils import save_results, get_classifier, get_file_num, \
+        pickle_summarized_data, get_saved_data, get_binetflow_files, \
+        get_feature_labels, to_tf_label, get_start_time_for, TIME_FORMAT
 import tensorflow as tf
+from summarizer import Summarizer
 
-
-class Summarizer:
-    def __init__(self):
-        self.data = {
-            'n_conn': 0,
-            'avg_duration': 0,
-            'n_udp': 0,
-            'n_tcp': 0,
-            'n_icmp': 0,
-            'n_sports>1024': 0,
-            'n_sports<1024': 0,
-            'n_dports>1024': 0,
-            'n_dports<1024': 0,
-            'n_s_a_p_address': 0,
-            'n_s_b_p_address': 0,
-            'n_s_c_p_address': 0,
-            'n_s_na_p_address': 0,
-            'n_d_a_p_address': 0,
-            'n_d_b_p_address': 0,
-            'n_d_c_p_address': 0,
-            'n_d_na_p_address': 0,
-            'normal_flow_count': 0,
-            'background_flow_count': 0
-        }
-        self.is_attack = 0  # would be 1 if it is an attack, set 0 by default
-        self._duration = 0
-        self.used = False
-
-    def add(self, item):
-        self.used = True
-        self.data['n_conn'] += 1
-
-        proto = 'n_%s' % item['proto']
-        if proto in self.data:
-            self.data[proto] += 1
-
-        self._duration += float(item['dur'])
-        self.data['avg_duration'] = self._duration / self.data['n_conn']
-
-        # sometimes ports are in a weird format so exclude them for now
-        try:
-            if int(item['sport']) < 1024:
-                self.data['n_sports<1024'] += 1
-            else:
-                self.data['n_sports>1024'] += 1
-        except Exception:
-            pass
-
-        try:
-            if int(item['dport']) < 1024:
-                self.data['n_dports<1024'] += 1
-            else:
-                self.data['n_dports>1024'] += 1
-        except Exception:
-            pass
-
-        if 'Botnet' in item['label']:
-            self.is_attack = 1
-        elif 'Normal' in item['label']:
-            self.data['normal_flow_count'] += 1
-        elif 'Background' in item['label']:
-            self.data['background_flow_count'] += 1
-
-        self.data['n_s_%s_p_address' % classify(item['srcaddr'])] += 1
-        self.data['n_d_%s_p_address' % classify(item['dstaddr'])] += 1
 
 def train_and_test_with(features, labels, classifier):
     """
         classifier: the str rep machine learning algorithm being used
+
+        :return A dictionary mapping a metric to it's value
     """
     clf = get_classifier(classifier)
 
@@ -100,7 +34,7 @@ def train_and_test_with(features, labels, classifier):
     result['attacks'] = sum(labels)
     result['normal count'] = len(labels) - result['attacks']
     result['training size'] = len(feat_train)
-    result['1'] = '%s, %s' % (attack_train,  attack_test)
+    result['1'] = '%s, %s' % (attack_train, attack_test)
     result['0'] = '%s, %s' % (len(label_train)-attack_train,
                               len(label_test) - attack_test)
     return result
@@ -109,11 +43,12 @@ def train_and_test_with(features, labels, classifier):
 def train_and_test_step(features, labels, classifier, step):
     correct = 0
     clf = get_classifier(classifier)
-
-    for i in range(len(features) - step):
-        clf.fit([features[i]], [labels[i]])
-        if labels[i+step] == clf.predict([features[i+step]]):
+    last = 0
+    for i in range(step, len(features) - step):
+        clf.fit(features[last:i], labels[last:i])
+        if labels[i] == clf.predict([features[i]]):
             correct += 1
+        last = i
 
     return correct / (len(features) - step)
 
@@ -148,6 +83,7 @@ def aggregate_file(interval, file_name, start=None):
             summaries[window].add(item)
     return [s for s in summaries if s.used]
 
+
 def aggregate_and_pickle(interval, file_name, start=None):
     if start is None:
         start = get_start_time_for(file_name)
@@ -160,8 +96,6 @@ def aggregate_and_pickle(interval, file_name, start=None):
 def train_with_tensorflow(features, labels):
     correctness = 0
     with tf.Session() as sess:
-        # sess = tf.InteractiveSession()
-
         x = tf.placeholder(tf.float32, shape=[None, 19])
         y_ = tf.placeholder(tf.float32, shape=[None, 2])
 
@@ -175,14 +109,14 @@ def train_with_tensorflow(features, labels):
         train_step = tf.train.GradientDescentOptimizer(
                 0.5).minimize(cross_entropy)
 
-        labels = to_tf_label(labels) 
+        labels = to_tf_label(labels)
         train_step.run(feed_dict={x: features, y_: labels})
 
         correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         correctness = accuracy.eval(feed_dict={x: features, y_: labels})
 
-    return correctness 
+    return correctness
 
 
 def run_analysis_with(interval, file_name, start_time=None, use_pickle=True):
@@ -224,6 +158,7 @@ def run_analysis_with(interval, file_name, start_time=None, use_pickle=True):
         path = '%srun_%s_%s.txt' % (directory, file_num, ml)
         save_results(path, file_name, start_time, interval, result)
 
+
 def tensorflow_analysis(interval, file_name, start=None):
     if start is None:
         start_time = get_start_time_for(file_name)
@@ -235,22 +170,24 @@ def tensorflow_analysis(interval, file_name, start=None):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    print('starting %d %s' %  (interval, file_name))
+    print('starting %d %s' % (interval, file_name))
     summaries = get_saved_data(interval, start_time, file_name)
     if summaries is None:
         summaries = aggregate_and_pickle(interval, file_name, start_time)
 
     features, labels = get_feature_labels(summaries)
-    
+
     print('Running tensorflow...')
-    accuracy = train_with_tensorflow(features, labels)
+    result = {'accuracy': train_with_tensorflow(features, labels)}
     print('Done.')
-    
+
     path = '%srun_%s_tf.txt' % (directory, file_num)
-    save_results(path, file_name, start_time, interval, {'accuracy': accuracy})
+    save_results(path, file_name, start_time, interval, result)
+    return result
+
 
 if __name__ == '__main__':
-    all_intervals = [5, 10, 20, 30, 60]
+    all_intervals = [.5, 1, 2, 5]
     interval = 5  # in seconds
 
     binet_files = get_binetflow_files()
@@ -258,4 +195,3 @@ if __name__ == '__main__':
     for binet in binet_files:
         for i in all_intervals:
             tensorflow_analysis(i, binet)
-
