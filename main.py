@@ -44,12 +44,11 @@ def train_and_test_step(features, labels, classifier, step):
     correct = 0
     clf = get_classifier(classifier)
     last = 0
-    for i in range(step, len(features) - step):
+    for i in range(step, len(features) - step, step):
         clf.fit(features[last:i], labels[last:i])
         if labels[i] == clf.predict([features[i]]):
             correct += 1
         last = i
-
     return correct / (len(features) - step)
 
 
@@ -106,8 +105,8 @@ def train_with_tensorflow(features, labels):
         y = tf.matmul(x, W) + b
         cross_entropy = tf.reduce_mean(
                 tf.nn.softmax_cross_entropy_with_logits(y, y_))
-        train_step = tf.train.GradientDescentOptimizer(
-                0.5).minimize(cross_entropy)
+        train_step = tf.train.GradientDescentOptimizer(0.5
+                ).minimize(cross_entropy)
 
         labels = to_tf_label(labels)
         train_step.run(feed_dict={x: features, y_: labels})
