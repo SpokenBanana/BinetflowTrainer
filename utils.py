@@ -26,11 +26,11 @@ def get_classifier(classifier):
     if classifier == 'svm':
         clf = svm.SVC()
     elif classifier == 'dt':
-        clf = tree.DecisionTreeClassifier()
+        clf = tree.DecisionTreeClassifier(class_weight='balanced')
     elif classifier == 'nb':
         clf = GaussianNB()
     elif classifier == 'rf':
-        clf = RandomForestClassifier()
+        clf = RandomForestClassifier(n_estimators=16, n_jobs=2)
     else:
         print("No classifier %s" % classifier)
         return None
@@ -77,13 +77,9 @@ def get_saved_data(interval, time, file_name):
 
 
 def get_binetflow_files():
-    binet_files = [f for f in os.listdir(".") if f[-9:] == 'binetflow']
-    binet_files = sorted(binet_files)
     files = []
-    # get the files in the order they should be in
-    order = [0, 1, 2, 5, 3, 8, 6, 7, 9, 11, 10, 12, 4]
-    for o in order:
-        files.append(binet_files[o])
+    with open('binet_files.txt', 'r+') as f:
+        files = f.readline().strip().split(',')
     return files
 
 
