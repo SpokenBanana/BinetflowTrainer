@@ -41,15 +41,21 @@ def train_and_test_with(features, labels, classifier):
 
 
 def train_and_test_step(features, labels, classifier, step):
-    correct = 0
-    clf = get_classifier(classifier)
+    if classifier != 'tf':
+        clf = get_classifier(classifier)
     last = 0
-    for i in range(step, len(features) - step, step):
-        clf.fit(features[last:i], labels[last:i])
-        if labels[i] == clf.predict([features[i]]):
-            correct += 1
+    acc = 0
+    for i in range(step, len(features), step):
+        if classifier == 'tf':
+            # @Performance: This takes way too long to run.
+            acc += train_with_tensorflow(features[last:i], labels[last:i],
+                                         [features[i]], [labels[i]])
+        else:
+            clf.fit(features[last:i], labels[last:i])
+            predicted = clf.predict([features[i]])
+            acc += accuracy_score([labels[i]], predicted)
         last = i
-    return correct / (len(features) - step)
+    return acc / (len(features) - step)
 
 
 def aggregate_file(interval, file_name, start=None):
@@ -92,8 +98,16 @@ def aggregate_and_pickle(interval, file_name, start=None):
     return summary
 
 
-def train_with_tensorflow(features, labels):
+def train_with_tensorflow(feat_train, label_train, feat_test=None,
+                          label_test=None):
     correctness = 0
+    if feat_test is None or label_test is None:
+        feat_train, feat_test, label_train, label_test = train_test_split(
+                            feat_train, label_train, test_size=0.5,
+                            random_state=42)
+    label_train = to_tf_label(label_train)
+    label_test = to_tf_label(label_test)
+
     with tf.Session() as sess:
         x = tf.placeholder(tf.float32, shape=[None, 19])
         y_ = tf.placeholder(tf.float32, shape=[None, 2])
@@ -105,15 +119,14 @@ def train_with_tensorflow(features, labels):
         y = tf.matmul(x, W) + b
         cross_entropy = tf.reduce_mean(
                 tf.nn.softmax_cross_entropy_with_logits(y, y_))
-        train_step = tf.train.GradientDescentOptimizer(0.5
-                ).minimize(cross_entropy)
+        train_step = tf.train.GradientDescentOptimizer(0.5).minimize(
+                cross_entropy)
 
-        labels = to_tf_label(labels)
-        train_step.run(feed_dict={x: features, y_: labels})
+        train_step.run(feed_dict={x: feat_train, y_: label_train})
 
         correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        correctness = accuracy.eval(feed_dict={x: features, y_: labels})
+        correctness = accuracy.eval(feed_dict={x: feat_test, y_: label_test})
 
     return correctness
 
