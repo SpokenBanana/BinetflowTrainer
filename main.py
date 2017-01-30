@@ -45,6 +45,7 @@ def train_and_test_step(features, labels, classifier, step):
         clf = get_classifier(classifier)
     last = 0
     acc = 0
+    count = 0
     for i in range(step, len(features), step):
         if classifier == 'tf':
             # @Performance: This takes way too long to run.
@@ -55,7 +56,8 @@ def train_and_test_step(features, labels, classifier, step):
             predicted = clf.predict([features[i]])
             acc += accuracy_score([labels[i]], predicted)
         last = i
-    return acc / (len(features) - step)
+        count += 1
+    return acc / (len(features) // step)
 
 
 def aggregate_file(interval, file_name, start=None):
@@ -203,7 +205,15 @@ if __name__ == '__main__':
     interval = 5  # in seconds
 
     binet_files = get_binetflow_files()
+    feature, label = get_feature_labels(get_saved_data(2,
+        get_start_time_for(binet_files[3]), binet_files[3])
+        )
+    clf = get_classifier('rf')
+    clf.fit(feature[0:100], label[0:100])
+    predicted = clf.predict([feature[101]])
+    print(accuracy_score([label[101]], predicted))
+    count = 0
+    for i in range(50, len(feature), 50):
+        count += 1
 
-    for binet in binet_files:
-        for i in all_intervals:
-            tensorflow_analysis(i, binet)
+    print(count, len(feature) // 50 )
