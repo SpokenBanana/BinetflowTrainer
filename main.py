@@ -149,7 +149,7 @@ def run_analysis_with(interval, file_name, start_time=None, use_pickle=True):
     print('starting %d %s' % (interval, file_name))
     if use_pickle:
         print('loading pickle')
-        summaries = get_saved_data(interval, start_time, file_name)
+        summaries = get_saved_data(interval, file_name)
         if summaries is None:
             print('failed to load pickle. Aggregating data')
             summaries = aggregate_file(interval, file_name, start)
@@ -185,7 +185,7 @@ def tensorflow_analysis(interval, file_name, start=None):
         os.makedirs(directory)
 
     print('starting %d %s' % (interval, file_name))
-    summaries = get_saved_data(interval, start_time, file_name)
+    summaries = get_saved_data(interval, file_name)
     if summaries is None:
         summaries = aggregate_and_pickle(interval, file_name, start_time)
 
@@ -205,15 +205,5 @@ if __name__ == '__main__':
     interval = 5  # in seconds
 
     binet_files = get_binetflow_files()
-    feature, label = get_feature_labels(get_saved_data(2,
-        get_start_time_for(binet_files[3]), binet_files[3])
-        )
-    clf = get_classifier('rf')
-    clf.fit(feature[0:100], label[0:100])
-    predicted = clf.predict([feature[101]])
-    print(accuracy_score([label[101]], predicted))
-    count = 0
-    for i in range(50, len(feature), 50):
-        count += 1
 
-    print(count, len(feature) // 50 )
+    run_analysis_with(1, binet_files[1])

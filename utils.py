@@ -49,24 +49,18 @@ def get_file_num(file_name):
     return '%s-%s' % (dash_split[0][-2:], dash_split[1])
 
 
-def pickle_summarized_data(interval, time, file_name, summary):
-    slug_time_chars = [':', ' ', '/', '.']
-    for slug in slug_time_chars:
-        time = time.replace(slug, '_')
+def pickle_summarized_data(interval, file_name, summary):
     directory = 'saved_data/'
     if not os.path.exists(directory):
         os.makedirs(directory)
-    f_name = 'saved_%ss_%s_%s.pk1' % (interval, get_file_num(file_name), time)
+    f_name = 'saved_%ss_%s.pk1' % (interval, get_file_num(file_name))
     with open('%s%s' % (directory, f_name), 'wb') as f:
         pickle.dump(summary, f, pickle.HIGHEST_PROTOCOL)
 
 
-def get_saved_data(interval, time, file_name):
-    slug_time_chars = [':', ' ', '/', '.']
-    for slug in slug_time_chars:
-        time = time.replace(slug, '_')
-    f_name = 'saved_%ss_%s_%s.pk1' % (interval, get_file_num(file_name), time)
+def get_saved_data(interval, file_name):
     directory = 'saved_data/'
+    f_name = 'saved_%ss_%s.pk1' % (interval, get_file_num(file_name))
     pickled_data_path = '%s%s' % (directory, f_name)
     if not os.path.isfile(pickled_data_path):
         return None
