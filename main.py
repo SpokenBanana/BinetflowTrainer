@@ -8,6 +8,8 @@ from utils import save_results, get_classifier, get_file_num, \
         get_feature_labels, to_tf_label, get_start_time_for, TIME_FORMAT
 import tensorflow as tf
 from summarizer import Summarizer
+# from binet_tf import use_tensorflow
+from binet_keras import Binet_Keras
 
 
 def train_and_test_with(features, labels, classifier):
@@ -110,6 +112,9 @@ def train_with_tensorflow(feat_train, label_train, feat_test=None,
     label_train = to_tf_label(label_train)
     label_test = to_tf_label(label_test)
 
+    val_acc = 0
+    precision = 0
+    recall = 0
     with tf.Session() as sess:
         x = tf.placeholder(tf.float32, shape=[None, 19])
         y_ = tf.placeholder(tf.float32, shape=[None, 2])
@@ -128,9 +133,15 @@ def train_with_tensorflow(feat_train, label_train, feat_test=None,
 
         correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
         correctness = accuracy.eval(feed_dict={x: feat_test, y_: label_test})
 
-    return correctness
+        sess.run(tf.argmax(y, 1), feed_dict={x: feat_test, y_: label_test})
+
+        # precision = precision_score(y_true, pred)
+        # recall = recall_score(y_true, pred)
+
+    return correctness, val_acc, precision, recall
 
 
 def run_analysis_with(interval, file_name, start_time=None, use_pickle=True):
@@ -205,5 +216,24 @@ if __name__ == '__main__':
     interval = 5  # in seconds
 
     binet_files = get_binetflow_files()
+    good_data = []
+    nice_data = [8, 9, 10]
+    for i in range(len(binet_files)):
+        good_data += get_saved_data(1, binet_files[i])
 
-    run_analysis_with(1, binet_files[1])
+    feature, label = get_feature_labels(good_data)
+    feature, _, label, _ = train_test_split(
+                        feature, label, test_size=0.5,
+                        random_state=42)
+    ke = Binet_Keras()
+    ke.train(feature, label)
+    for i, e in enumerate(binet_files):
+        f, l = get_feature_labels(get_saved_data(1, e))
+        print(i, e)
+        print(train_with_tensorflow(f, l))
+        print(ke.test(f, l))
+        print()
+
+    # Avoid error in keras
+    import gc
+    gc.collect()
