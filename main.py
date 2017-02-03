@@ -9,7 +9,7 @@ from utils import save_results, get_classifier, get_file_num, \
 import tensorflow as tf
 from summarizer import Summarizer
 # from binet_tf import use_tensorflow
-from binet_keras import Binet_Keras
+from binet_keras import keras_train_and_test
 
 
 def train_and_test_with(features, labels, classifier):
@@ -216,23 +216,16 @@ if __name__ == '__main__':
     interval = 5  # in seconds
 
     binet_files = get_binetflow_files()
-    good_data = []
+    train_data = []
     nice_data = [8, 9, 10]
-    for i in range(len(binet_files)):
-        good_data += get_saved_data(1, binet_files[i])
+    # for i in range(len(binet_files)):
+    #     train_data += get_saved_data(1, binet_files[i])
 
-    feature, label = get_feature_labels(good_data)
-    feature, _, label, _ = train_test_split(
-                        feature, label, test_size=0.5,
-                        random_state=42)
-    ke = Binet_Keras()
-    ke.train(feature, label)
     for i, e in enumerate(binet_files):
-        f, l = get_feature_labels(get_saved_data(1, e))
         print(i, e)
-        print(train_with_tensorflow(f, l))
-        print(ke.test(f, l))
-        print()
+        feature, label = get_feature_labels(get_saved_data(0.5, e))
+        print(keras_train_and_test(feature, label))
+        print(train_with_tensorflow(feature, label))
 
     # Avoid error in keras
     import gc
