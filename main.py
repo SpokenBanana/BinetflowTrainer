@@ -8,8 +8,8 @@ from utils import save_results, get_classifier, get_file_num, \
         get_feature_labels, to_tf_label, get_start_time_for, TIME_FORMAT
 import tensorflow as tf
 from summarizer import Summarizer
-# from binet_tf import use_tensorflow
 from binet_keras import keras_train_and_test
+from joblib import delayed, Parallel
 
 
 def train_and_test_with(features, labels, classifier):
@@ -94,11 +94,8 @@ def aggregate_file(interval, file_name, start=None):
 
 
 def aggregate_and_pickle(interval, file_name, start=None):
-    if start is None:
-        start = get_start_time_for(file_name)
-
     summary = aggregate_file(interval, file_name, start)
-    pickle_summarized_data(interval, start, file_name, summary)
+    pickle_summarized_data(interval, file_name, summary)
     return summary
 
 
@@ -218,14 +215,9 @@ if __name__ == '__main__':
     binet_files = get_binetflow_files()
     train_data = []
     nice_data = [8, 9, 10]
-    # for i in range(len(binet_files)):
-    #     train_data += get_saved_data(1, binet_files[i])
 
-    for i, e in enumerate(binet_files):
-        print(i, e)
-        feature, label = get_feature_labels(get_saved_data(0.5, e))
-        print(keras_train_and_test(feature, label))
-        print(train_with_tensorflow(feature, label))
+    for name in binet_files:
+        aggregate_and_pickle(0.25, name)
 
     # Avoid error in keras
     import gc
