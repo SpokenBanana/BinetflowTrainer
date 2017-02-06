@@ -30,7 +30,7 @@ def get_classifier(classifier):
     elif classifier == 'nb':
         clf = GaussianNB()
     elif classifier == 'rf':
-        clf = RandomForestClassifier(n_estimators=16, n_jobs=2)
+        clf = RandomForestClassifier(n_estimators=50, n_jobs=2)
     else:
         print("No classifier %s" % classifier)
         return None
@@ -117,3 +117,18 @@ def get_start_time_for(file_name):
         f.readline()
         time = f.readline().strip().split(',')[0]
     return time
+
+
+def mask_features(features):
+    # computed from grid search
+    feature_mask = [False,  True,  True,  True,  True, False,  True, False,
+                    True, False, False,  True,  True,  True,  True,  True,
+                    False,  True, False]
+    other_features = []
+    for i in range(len(features)):
+        good_features = []
+        for j in range(len(features[i])):
+            if feature_mask[j]:
+                good_features.append(features[i][j])
+        other_features.append(good_features)
+    return np.array(other_features)
