@@ -26,11 +26,14 @@ def get_classifier(classifier):
     if classifier == 'svm':
         clf = svm.SVC()
     elif classifier == 'dt':
-        clf = tree.DecisionTreeClassifier(class_weight='balanced')
+        clf = tree.DecisionTreeClassifier(class_weight='balanced',
+                                          criterion='entropy')
     elif classifier == 'nb':
         clf = GaussianNB()
     elif classifier == 'rf':
-        clf = RandomForestClassifier(n_estimators=50, n_jobs=2)
+        clf = RandomForestClassifier(n_estimators=50,
+                                     criterion='entropy',
+                                     n_jobs=2)
     else:
         print("No classifier %s" % classifier)
         return None
