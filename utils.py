@@ -27,7 +27,7 @@ def get_classifier(classifier):
         clf = svm.SVC()
     elif classifier == 'dt':
         clf = tree.DecisionTreeClassifier(class_weight='balanced',
-                                          criterion='entropy')
+                                          criterion='entropy', splitter='best')
     elif classifier == 'nb':
         clf = GaussianNB()
     elif classifier == 'rf':
@@ -127,6 +127,8 @@ def mask_features(features):
     feature_mask = [False,  True,  True,  True,  True, False,  True, False,
                     True, False, False,  True,  True,  True,  True,  True,
                     False,  True, False]
+    other = [True, True, True, True, True, True, True, True, True,
+             False, True, True, True, False, True, True, True, True, True]
     other_features = []
     for i in range(len(features)):
         good_features = []
