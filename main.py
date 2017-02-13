@@ -10,9 +10,11 @@ import tensorflow as tf
 from summarizer import Summarizer
 from binet_keras import keras_train_and_test
 from joblib import delayed, Parallel
+import numpy as np
 
 
-def train_and_test_with(features, labels, classifier):
+def train_and_test_with(features, labels, classifier,
+                        feat_test=None, label_test=None):
     """
         classifier: the str rep machine learning algorithm being used
 
@@ -20,8 +22,12 @@ def train_and_test_with(features, labels, classifier):
     """
     clf = get_classifier(classifier)
 
-    feat_train, feat_test, label_train, label_test = train_test_split(
-        features, labels, test_size=0.5, random_state=42)
+    if feat_test is None and label_test is None:
+        feat_train, feat_test, label_train, label_test = train_test_split(
+            features, labels, test_size=0.5, random_state=42)
+    else:
+        feat_train = features
+        label_train = labels
 
     clf.fit(feat_train, label_train)
 
@@ -51,8 +57,11 @@ def train_and_test_step(features, labels, classifier, step):
     for i in range(step, len(features), step):
         if classifier == 'tf':
             # @Performance: This takes way too long to run.
-            acc += train_with_tensorflow(features[last:i], labels[last:i],
-                                         [features[i]], [labels[i]])
+            feat_test = np.array([features[i]])
+            label_test = np.array([labels[i]])
+            a, _, _ = keras_train_and_test(features[last:i], labels[last:i],
+                                         feat_test, label_test)
+            acc += a
         else:
             clf.fit(features[last:i], labels[last:i])
             predicted = clf.predict([features[i]])
