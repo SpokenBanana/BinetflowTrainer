@@ -36,3 +36,16 @@ def keras_train_and_test(feat_train, label_train,
 
     # Accuracy, precision, recall
     return loss_and_metrics[1:]
+
+
+def get_tf_model():
+    model = Sequential()
+    model.add(Dense(64, input_dim=19, init='uniform',
+                    activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(64, activation='relu'))
+    model.add(Dropout(0.5))
+    model.add(Dense(1, activation='sigmoid'))
+    model.compile(loss='binary_crossentropy', optimizer='rmsprop',
+                       metrics=['accuracy', 'precision', 'recall'])
+    return model

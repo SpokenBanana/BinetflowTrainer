@@ -1,4 +1,5 @@
 import os
+import math
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import f1_score, accuracy_score, precision_score, \
     recall_score
@@ -60,7 +61,7 @@ def train_and_test_step(features, labels, classifier, step):
             feat_test = np.array([features[i]])
             label_test = np.array([labels[i]])
             a, _, _ = keras_train_and_test(features[last:i], labels[last:i],
-                                         feat_test, label_test)
+                                           feat_test, label_test, dimension=12)
             acc += a
         else:
             clf.fit(features[last:i], labels[last:i])
@@ -68,7 +69,7 @@ def train_and_test_step(features, labels, classifier, step):
             acc += accuracy_score([labels[i]], predicted)
         last = i
         count += 1
-    return acc / (len(features) // step)
+    return acc / math.ceil(len(features) / step)
 
 
 def aggregate_file(interval, file_name, start=None):
