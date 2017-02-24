@@ -42,9 +42,9 @@ def keras_train_and_test(feat_train, label_train,
     return loss_and_metrics[1:]
 
 
-def get_tf_model(out=1):
+def get_tf_model(dimension=19, out=1):
     model = Sequential()
-    model.add(Dense(64, input_dim=19, init='uniform',
+    model.add(Dense(64, input_dim=dimension, init='uniform',
                     activation='relu'))
     model.add(Dropout(0.5))
     model.add(Dense(64, activation='relu'))

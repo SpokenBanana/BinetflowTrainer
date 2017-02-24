@@ -25,6 +25,15 @@ def run_files(f, window):
     aggregate_and_pickle(window, f)
 
 
+def get_balance():
+    for binet in binet_files:
+        summary = get_saved_data(0.15, binet)
+        _, label = get_feature_labels(summary)
+        attacks = sum(label)
+        nonattacks = len(label) - attacks
+        print("{} | {} ".format(attacks, nonattacks))
+
+
 def window_shift(window):
     writer = pytablewriter.MarkdownTableWriter()
     writer.table_name = 'Window Shift Accuracy for {}s'.format(window)
@@ -62,11 +71,9 @@ def file_stats():
         for name in binet_files:
             values = [name]
             feature, label = get_feature_labels(get_saved_data(window, name))
-            feature = mask_features(feature)
+            # feature = mask_features(feature)
             feat_train, feat_test, label_train, label_test = train_test_split(
                 feature, label, test_size=0.3, random_state=42)
-            z = 0
-            o = 0
             for ml in mls:
                 r = train_and_test_with(feat_train, label_train, ml, feat_test,
                                         label_test)
@@ -77,7 +84,7 @@ def file_stats():
                 print(values)
             correctness, precision, recall = \
                 keras_train_and_test(feat_train, label_train,
-                                     feat_test, label_test, dimension=17)
+                                     feat_test, label_test, dimension=19)
             values.append('{0:.4f}, {1:.4f}, {2:.4f}'.format(correctness,
                                                                precision,
                                                                recall))
@@ -175,19 +182,21 @@ def bots_test():
         for i, b in enumerate(binet_files):
             summary = get_saved_data(window, b)
             for s in summary:
+                classes = [0 for _ in range(len(bot))]
                 if s.is_attack:
-                    classes = [0 for _ in bot]
                     classes[bot_data[i]] = 1
                     labels.append(classes)
                     features.append([s.data[o] for o in order])
+            print(len(summary), len(features))
         features = np.array(features)
         labels = np.array(labels)
         """
-         with open('bot_features.pk1', 'rb') as f:
+        with open('bot_features', 'rb') as f:
             features = pickle.load(f)
+            # pickle.dump(features, f, pickle.HIGHEST_PROTOCOL)
         with open('bot_labels.pk1', 'rb') as f:
             labels = pickle.load(f)
-
+            # pickle.dump(labels, f, pickle.HIGHEST_PROTOCOL)
         values = [bot]
         for ml in mls:
             r = test_and_train_bots(features, labels, ml)
@@ -195,7 +204,7 @@ def bots_test():
                           r['precision'], r['recall']))
         correctness, precision, recall = keras_train_and_test(features,
                                                               labels,
-                                                              out=7)
+                                                              out=8)
         values.append('{0:.4f}, {1:.4f}, {2:.4f}\n'.format(correctness,
                        precision, recall))
         value_matrix.append(values)
@@ -219,6 +228,8 @@ def stats_on_best():
 # print('For tuned down features of size 12')
 # print("70/30 split")
 # file_stats()
+# get_balance()
 bots_test()
 # window_shift(.15)
 # kfold_test()
+
