@@ -131,13 +131,13 @@ def mask_features(features):
     feature_mask = [False,  True,  True,  True,  True, False,  True, False,
                     True, False, False,  True,  True,  True,  True,  True,
                     False,  True, False]
-    other = [True, True, True, True, True, True, True, True, True,
-             False, True, True, True, False, True, True, True, True, True]
+    other = [True,  True,  True,  True,  True,  True,  True,  True, False,
+        True,  True, False,  True,  True,  True,  True,  True,  True,  True]
     other_features = []
     for i in range(len(features)):
         good_features = []
         for j in range(len(features[i])):
-            if feature_mask[j]:
+            if other[j]:
                 good_features.append(features[i][j])
         other_features.append(good_features)
     return np.array(other_features)
