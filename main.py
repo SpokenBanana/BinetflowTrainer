@@ -100,6 +100,7 @@ def aggregate_file(interval, file_name, start=None):
                     summaries.append(Summarizer())
             item = dict(zip(headers, args))
             summaries[window].add(item)
+
     return [s for s in summaries if s.used]
 
 
@@ -220,15 +221,11 @@ def tensorflow_analysis(interval, file_name, start=None):
 
 if __name__ == '__main__':
     all_intervals = [.5, 1, 2, 5]
-    interval = 5  # in seconds
 
     binet_files = get_binetflow_files()
-    train_data = []
-    nice_data = [8, 9, 10]
 
-    for name in binet_files:
-        aggregate_and_pickle(0.25, name)
-
+    for i in range(3):
+        aggregate_file(0.15, binet_files[4])
     # Avoid error in keras
     import gc
     gc.collect()

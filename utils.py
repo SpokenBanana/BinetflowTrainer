@@ -31,7 +31,7 @@ def get_classifier(classifier):
     elif classifier == 'nb':
         clf = GaussianNB()
     elif classifier == 'rf':
-        clf = RandomForestClassifier(n_estimators=50,
+        clf = RandomForestClassifier(n_estimators=100,
                                      criterion='entropy',
                                      n_jobs=2)
     else:
@@ -99,7 +99,11 @@ def get_files_with_bot(bot):
 
 
 def get_feature_labels(summaries):
-    features = np.array([list(s.data.values()) for s in summaries])
+    order = ['n_dports>1024', 'background_flow_count', 'n_s_a_p_address', 'avg_duration', 'n_s_b_p_address',
+             'n_sports<1024', 'n_sports>1024', 'n_conn', 'n_s_na_p_address', 'n_udp', 'n_icmp', 'n_d_na_p_address',
+             'n_d_a_p_address', 'n_s_c_p_address', 'n_d_c_p_address', 'normal_flow_count', 'n_dports<1024',
+             'n_d_b_p_address', 'n_tcp']
+    features = np.array([[s.data[o] for o in order] for s in summaries])
     labels = np.array([s.is_attack for s in summaries])
     return features, labels
 
