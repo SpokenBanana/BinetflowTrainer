@@ -49,6 +49,32 @@ def train_and_test_with(features, labels, classifier,
     return result
 
 
+def test_and_train_bots(features, labels, classifier,
+                        feat_test=None, label_test=None):
+    """
+        classifier: the str rep machine learning algorithm being used
+
+        :return A dictionary mapping a metric to it's value
+    """
+    clf = get_classifier(classifier)
+
+    if feat_test is None and label_test is None:
+        feat_train, feat_test, label_train, label_test = train_test_split(
+            features, labels, test_size=0.5, random_state=42)
+    else:
+        feat_train = features
+        label_train = labels
+
+    clf.fit(feat_train, label_train)
+
+    predicted_labels = clf.predict(feat_test)
+    result = {}
+    result['recall'] = recall_score(label_test, predicted_labels, average='weighted')
+    result['accuracy'] = accuracy_score(label_test, predicted_labels)
+    result['precision'] = precision_score(label_test, predicted_labels, average='weighted')
+    return result
+
+
 def train_and_test_step(features, labels, classifier, step):
     if classifier != 'tf':
         clf = get_classifier(classifier)
