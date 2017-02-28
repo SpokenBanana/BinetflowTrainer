@@ -10,9 +10,10 @@ import pytablewriter
 from joblib import Parallel, delayed
 from sklearn import metrics
 from sklearn.model_selection import cross_val_score, KFold, train_test_split
-from binet_keras import keras_train_and_test
+from binet_keras import keras_train_and_test, BinetKeras
 import numpy as np
 import pickle
+import random
 
 
 windows = [.15]  # , 1, 2, 5]
@@ -20,7 +21,6 @@ binet_files = get_binetflow_files()
 
 
 def run_files(f, window):
-    # if get_saved_data(window, f) is None:
     print('aggregating {} for {}s'.format(f, window))
     aggregate_and_pickle(window, f)
 
@@ -41,21 +41,16 @@ def window_shift(window):
     value_matrix = []
     for file_name in binet_files:
         values = []
-        print(file_name)
         feature, label = get_feature_labels(
                 get_saved_data(window, file_name))
         feature = mask_features(feature)
-        feature = feature[:int(len(feature) * .05)]
-        label = label[:int(len(label) * .05)]
-        values += [file_name, '{0:.4f}'.format(
-                        train_and_test_step(feature, label, 'dt', 1000)),
-                   '{0:.4f}'.format(train_and_test_step(
-                        feature, label, 'rf', 1000))]
-        values.append('{0:.4f}\n'.format(
-            train_and_test_step(feature, label, 'tf', 1000)))
-        print(values)
+        values += [
+            file_name,
+            '{0:.4f}'.format(train_and_test_step(feature, label, 'dt', 1000)),
+            '{0:.4f}'.format(train_and_test_step(feature, label, 'rf', 1000))]
+        values.append(
+            '{0:.4f}'.format(train_and_test_step(feature, label, 'tf', 1000)))
         value_matrix.append(values)
-
     writer.value_matrix = value_matrix
     writer.write_table()
 
@@ -213,13 +208,17 @@ def bots_test():
 
 
 def stats_on_best():
-    best = [1, 3, 9, 12]
+    best = [8, 9, 12]
     summaries = []
     for b in best:
         summaries += get_saved_data(0.15, binet_files[b])
     feature, label = get_feature_labels(summaries)
-
-
+    scores = []
+    for i in range(1, 5):
+        feature = [[random.randrange(-(i*10), i*10) for f in feat] for feat in feature]
+        acc, _, _ = keras_train_and_test(feature, label)
+        scores.append(acc)
+    print(scores)
 
 
 # Parallel(n_jobs=2)(delayed(run_files)(name, 0.15) for name in binet_files)
@@ -229,7 +228,6 @@ def stats_on_best():
 # print("70/30 split")
 # file_stats()
 # get_balance()
-bots_test()
+stats_on_best()
 # window_shift(.15)
 # kfold_test()
-

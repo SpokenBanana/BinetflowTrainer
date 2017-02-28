@@ -49,6 +49,13 @@ def train_and_test_with(features, labels, classifier,
     return result
 
 
+def get_file_stats(features, labels, classifier,
+                        feat_test=None, label_test=None):
+    attacks = sum(label)
+    nonattacks = len(label) - attacks
+    return attacks, nonattacks
+
+
 def test_and_train_bots(features, labels, classifier,
                         feat_test=None, label_test=None):
     """
@@ -171,9 +178,6 @@ def train_with_tensorflow(feat_train, label_train, feat_test=None,
         correctness = accuracy.eval(feed_dict={x: feat_test, y_: label_test})
 
         sess.run(tf.argmax(y, 1), feed_dict={x: feat_test, y_: label_test})
-
-        # precision = precision_score(y_true, pred)
-        # recall = recall_score(y_true, pred)
 
     return correctness, val_acc, precision, recall
 

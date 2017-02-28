@@ -5,6 +5,8 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import RandomForestClassifier
 import os
 from summarizer import Summarizer
+import matplotlib as plt
+from itertools import cycle
 
 TIME_FORMAT = "%Y/%m/%d %H:%M:%S.%f"
 
@@ -26,11 +28,13 @@ def get_classifier(classifier):
     if classifier == 'svm':
         clf = svm.SVC()
     elif classifier == 'dt':
+        # clf = tree.DecisionTreeClassifier()
         clf = tree.DecisionTreeClassifier(class_weight='balanced',
                                           criterion='entropy', splitter='best')
     elif classifier == 'nb':
         clf = GaussianNB()
     elif classifier == 'rf':
+        # clf = RandomForestClassifier()
         clf = RandomForestClassifier(n_estimators=100,
                                      criterion='entropy',
                                      n_jobs=2)
@@ -98,11 +102,17 @@ def get_files_with_bot(bot):
     return []
 
 
+def get_feature_order():
+    return ['n_dports>1024',
+            'background_flow_count', 'n_s_a_p_address', 'avg_duration',
+            'n_s_b_p_address', 'n_sports<1024', 'n_sports>1024', 'n_conn',
+            'n_s_na_p_address', 'n_udp', 'n_icmp', 'n_d_na_p_address',
+            'n_d_a_p_address', 'n_s_c_p_address', 'n_d_c_p_address',
+            'normal_flow_count', 'n_dports<1024', 'n_d_b_p_address', 'n_tcp']
+
+
 def get_feature_labels(summaries):
-    order = ['n_dports>1024', 'background_flow_count', 'n_s_a_p_address', 'avg_duration', 'n_s_b_p_address',
-             'n_sports<1024', 'n_sports>1024', 'n_conn', 'n_s_na_p_address', 'n_udp', 'n_icmp', 'n_d_na_p_address',
-             'n_d_a_p_address', 'n_s_c_p_address', 'n_d_c_p_address', 'normal_flow_count', 'n_dports<1024',
-             'n_d_b_p_address', 'n_tcp']
+    order = get_feature_order()
     features = np.array([[s.data[o] for o in order] for s in summaries])
     labels = np.array([s.is_attack for s in summaries])
     return features, labels
@@ -128,16 +138,36 @@ def get_start_time_for(file_name):
 
 def mask_features(features):
     # computed from grid search
-    feature_mask = [False,  True,  True,  True,  True, False,  True, False,
-                    True, False, False,  True,  True,  True,  True,  True,
-                    False,  True, False]
-    other = [True,  True,  True,  True,  True,  True,  True,  True, False,
-        True,  True, False,  True,  True,  True,  True,  True,  True,  True]
+    feature_mask = [True,  True, True, True, True, True, True, True,
+                    False, True, True, False, True, True, True, True, True,
+                    True,  True]
     other_features = []
     for i in range(len(features)):
         good_features = []
         for j in range(len(features[i])):
-            if other[j]:
+            if feature_mask[j]:
                 good_features.append(features[i][j])
         other_features.append(good_features)
     return np.array(other_features)
+
+
+def plot_roc_curve(fpr, tpr, roc_auc, title='ROC curve'):
+    plt.figure()
+    lw = 2
+    colors = cycle(['darkorange', 'blue', 'red', 'green', 'black', 'purple',
+                   'yellow'])
+    for i, color in zip(range(len(fpr), colors)):
+        plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+                 label='ROC area {0:.4f}'.format(roc_auc[i]))
+    # plt.plot(fpr, tpr, color='darkorange', lw=lw,
+    #          label='ROC area under curve = {}'.format(roc_auc))
+    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.title(title)
+    plt.xlabel('False positive rate')
+    plt.ylabel('True positive rate')
+    plt.legend(loc='lower right')
+    plt.show()
+
+
