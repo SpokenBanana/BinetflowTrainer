@@ -1,28 +1,31 @@
 from main import train_and_test_step, aggregate_and_pickle, \
-        train_and_test_with, train_with_tensorflow, test_and_train_bots
-from utils import get_feature_labels, get_binetflow_files, get_start_time_for,\
+        train_and_test_with, test_and_train_bots
+from utils import get_feature_labels, get_binetflow_files, \
         get_saved_data, mask_features, get_classifier
 from summarizer import Summarizer
 from sklearn.metrics import precision_recall_curve, auc
-from sklearn.cross_validation import ShuffleSplit
-from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score
 import pytablewriter
 from joblib import Parallel, delayed
-from sklearn import metrics
-from sklearn.model_selection import cross_val_score, KFold, train_test_split
-from binet_keras import keras_train_and_test, BinetKeras
+from sklearn.model_selection import KFold, train_test_split
+from binet_keras import keras_train_and_test
 import numpy as np
 import pickle
 import random
+from aggregator import aggregate_and_pickle_v2
+import matplotlib.pyplot as plt
 
 
 windows = [.15]  # , 1, 2, 5]
 binet_files = get_binetflow_files()
 
 
-def run_files(f, window):
-    print('aggregating {} for {}s'.format(f, window))
-    aggregate_and_pickle(window, f)
+def run_files(f, window, v2=False):
+    print('aggregating {} for {}s v2: {}'.format(f, window, v2))
+    if v2:
+        aggregate_and_pickle_v2(window, f)
+    else:
+        aggregate_and_pickle(window, f)
 
 
 def get_balance():
@@ -61,11 +64,13 @@ def file_stats():
         writer = pytablewriter.MarkdownTableWriter()
         writer.table_name = 'File Accuracy for {}s'.format(window)
         writer.header_list = ['File', 'Decision Tree', 'Random Forest',
-                                                        'Tensorflow']
+                              'Tensorflow']
         value_matrix = []
         for name in binet_files:
             values = [name]
-            feature, label = get_feature_labels(get_saved_data(window, name))
+            feature, label = get_feature_labels(get_saved_data(window, name,
+                                                               v2=True),
+                                                               v2=True)
             # feature = mask_features(feature)
             feat_train, feat_test, label_train, label_test = train_test_split(
                 feature, label, test_size=0.3, random_state=42)
@@ -79,7 +84,7 @@ def file_stats():
                 print(values)
             correctness, precision, recall = \
                 keras_train_and_test(feat_train, label_train,
-                                     feat_test, label_test, dimension=19)
+                                     feat_test, label_test, dimension=22)
             values.append('{0:.4f}, {1:.4f}, {2:.4f}'.format(correctness,
                                                                precision,
                                                                recall))
@@ -221,13 +226,76 @@ def stats_on_best():
     print(scores)
 
 
-# Parallel(n_jobs=2)(delayed(run_files)(name, 0.15) for name in binet_files)
+def shuffle_data_test():
+    binet = binet_files[-1]
+    feature, label = get_feature_labels(get_saved_data(0.15, binet))
+    scores = []
+    precs = []
+    rec = []
+
+    # do normal scoring
+    acc, p, r = keras_train_and_test(feature, label)
+    scores.append(acc)
+    precs.append(p)
+    rec.append(r)
+    mstd = list(get_mean_std(feature))
+    for i in range(1, 5):
+        indices = [random.randrange(len(feature)) for _ in range(
+            int(len(feature) * ((i*10)/100)))]
+        f = feature[:]
+        for index in indices:
+            f[index] = [np.random.normal(*mstd[i]) for i in range(len(f[index]))]
+        acc, p, r = keras_train_and_test(f, label)
+        scores.append(acc)
+        precs.append(p)
+        rec.append(r)
+
+    plt.figure()
+    plt.plot(scores, color='lightblue', label='Accuracy')
+    plt.plot(precs, color='red', label='precision')
+    plt.plot(rec, color='green', label='recall')
+    plt.ylabel("Score")
+    plt.xlabel("\% of features randomized")
+    plt.title("Score randomizing")
+    plt.legend(loc='best')
+    plt.show()
+
+
+def get_mean_std(features):
+    return zip(np.mean(features, axis=0), np.std(features, axis=0))
+
+
+def feature_plotting():
+    feature, label = get_feature_labels(get_saved_data(0.15, binet_files[-1]))
+    feature = np.array(feature[int(len(feature) * .92):])[:, 7]
+    label = label[int(len(label) * .92):]
+    i = 0
+    plt.figure()
+    start = 0
+    while i < len(label):
+        if label[i] == 1:
+            plt.plot(range(start, i), feature[start:i], lw=1, color='black')
+            start = i
+            while i < len(label) and label[i]:
+                i += 1
+            end = i
+            plt.plot(range(start, end), feature[start:end], lw=3, color='red')
+            start = end
+        i += 1
+    del label
+    del feature
+    plt.show()
+
+
+# Parallel(n_jobs=2)(delayed(run_files)(name, 0.15, v2=True) for name in binet_files)
 # Parallel(n_jobs=2)(delayed(window_shift)(i) for i in windows)
 # window_shift(0.15)
 # print('For tuned down features of size 12')
 # print("70/30 split")
 # file_stats()
 # get_balance()
-stats_on_best()
+# stats_on_best()
 # window_shift(.15)
 # kfold_test()
+# shuffle_data_test()
+feature_plotting()
