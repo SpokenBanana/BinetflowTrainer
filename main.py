@@ -222,33 +222,6 @@ def run_analysis_with(interval, file_name, start_time=None, use_pickle=True):
         save_results(path, file_name, start_time, interval, result)
 
 
-def tensorflow_analysis(interval, file_name, start=None):
-    if start is None:
-        start_time = get_start_time_for(file_name)
-
-    start = datetime.strptime(start_time, TIME_FORMAT)
-    file_num = get_file_num(file_name)
-    directory = 'runs_of_%ss/' % interval
-
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    print('starting %d %s' % (interval, file_name))
-    summaries = get_saved_data(interval, file_name)
-    if summaries is None:
-        summaries = aggregate_and_pickle(interval, file_name, start_time)
-
-    features, labels = get_feature_labels(summaries)
-
-    print('Running tensorflow...')
-    result = {'accuracy': train_with_tensorflow(features, labels)}
-    print('Done.')
-
-    path = '%srun_%s_tf.txt' % (directory, file_num)
-    save_results(path, file_name, start_time, interval, result)
-    return result
-
-
 if __name__ == '__main__':
     all_intervals = [.5, 1, 2, 5]
 

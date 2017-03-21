@@ -14,6 +14,7 @@ import pickle
 import random
 from aggregator import aggregate_and_pickle_v2
 import matplotlib.pyplot as plt
+from bokeh.plotting import figure, output_file, show
 
 
 windows = [.15]  # , 1, 2, 5]
@@ -234,6 +235,7 @@ def shuffle_data_test():
     rec = []
 
     # do normal scoring
+    # TODO: do same analysis with dt and rf
     acc, p, r = keras_train_and_test(feature, label)
     scores.append(acc)
     precs.append(p)
@@ -266,15 +268,16 @@ def get_mean_std(features):
 
 
 def feature_plotting():
+    # Still takes way too long to run, get script ready for school
+    # computer
     feature, label = get_feature_labels(get_saved_data(0.15, binet_files[-1]))
-    feature = np.array(feature[int(len(feature) * .92):])[:, 7]
-    label = label[int(len(label) * .92):]
+    print(sum(label))
+    return
     i = 0
     plt.figure()
     start = 0
     while i < len(label):
         if label[i] == 1:
-            plt.plot(range(start, i), feature[start:i], lw=1, color='black')
             start = i
             while i < len(label) and label[i]:
                 i += 1
@@ -287,7 +290,7 @@ def feature_plotting():
     plt.show()
 
 
-# Parallel(n_jobs=2)(delayed(run_files)(name, 0.15, v2=True) for name in binet_files)
+Parallel(n_jobs=2)(delayed(run_files)(name, 0.15) for name in binet_files)
 # Parallel(n_jobs=2)(delayed(window_shift)(i) for i in windows)
 # window_shift(0.15)
 # print('For tuned down features of size 12')

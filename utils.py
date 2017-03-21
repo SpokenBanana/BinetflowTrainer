@@ -56,8 +56,8 @@ def get_file_num(file_name):
     return '%s-%s' % (dash_split[0][-2:], dash_split[1])
 
 
-def pickle_summarized_data(interval, file_name, summary):
-    directory = 'saved_data/'
+def pickle_summarized_data(interval, file_name, summary, v2=False):
+    directory = 'saved_v2/' if v2 else 'saved_data/'
     if not os.path.exists(directory):
         os.makedirs(directory)
     f_name = 'saved_%ss_%s.pk1' % (interval, get_file_num(file_name))
@@ -65,8 +65,8 @@ def pickle_summarized_data(interval, file_name, summary):
         pickle.dump(summary, f, pickle.HIGHEST_PROTOCOL)
 
 
-def get_saved_data(interval, file_name):
-    directory = 'saved_data/'
+def get_saved_data(interval, file_name, v2=False):
+    directory = 'saved_v2/' if v2 else 'saved_data/'
     f_name = 'saved_%ss_%s.pk1' % (interval, get_file_num(file_name))
     pickled_data_path = '%s%s' % (directory, f_name)
     if not os.path.isfile(pickled_data_path):
@@ -111,8 +111,19 @@ def get_feature_order():
             'normal_flow_count', 'n_dports<1024', 'n_d_b_p_address', 'n_tcp']
 
 
-def get_feature_labels(summaries):
-    order = get_feature_order()
+def get_v2_order():
+    # 22 features
+    return ['n_dports>1024',
+            'background_flow_count', 'n_s_a_p_address', 'avg_duration',
+            'n_s_b_p_address', 'n_sports<1024', 'n_sports>1024', 'n_conn',
+            'n_s_na_p_address', 'n_udp', 'n_icmp', 'n_d_na_p_address',
+            'n_d_a_p_address', 'n_s_c_p_address', 'n_d_c_p_address',
+            'normal_flow_count', 'n_dports<1024', 'n_d_b_p_address', 'n_tcp',
+            'end_tcp', 'end_udp', 'end_icmp']
+
+
+def get_feature_labels(summaries, v2=False):
+    order = get_v2_order() if v2 else get_feature_order()
     features = np.array([[s.data[o] for o in order] for s in summaries])
     labels = np.array([s.is_attack for s in summaries])
     return features, labels
