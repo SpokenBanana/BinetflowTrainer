@@ -268,29 +268,20 @@ def get_mean_std(features):
 
 
 def feature_plotting():
-    # Still takes way too long to run, get script ready for school
-    # computer
-    feature, label = get_feature_labels(get_saved_data(0.15, binet_files[-1]))
-    print(sum(label))
-    return
-    i = 0
+    feature, label = get_feature_labels(get_saved_data(0.15, binet_files[12]))
     plt.figure()
-    start = 0
-    while i < len(label):
-        if label[i] == 1:
-            start = i
-            while i < len(label) and label[i]:
-                i += 1
-            end = i
-            plt.plot(range(start, end), feature[start:end], lw=3, color='red')
-            start = end
-        i += 1
+    zeroes = set(zip(range(len(feature)), feature[:,9]))
+    ones = set(z for z in zeroes if label[z[0]] == 1)
     del label
     del feature
+    zeroes = zeroes.difference(ones)
+    plt.scatter(*zip(*zeroes), s=1, c='gray')
+    del zeroes
+    plt.scatter(*zip(*ones),s=10, c='lightgreen')
     plt.show()
 
 
-Parallel(n_jobs=2)(delayed(run_files)(name, 0.15) for name in binet_files)
+# Parallel(n_jobs=2)(delayed(run_files)(name, 0.15) for name in binet_files)
 # Parallel(n_jobs=2)(delayed(window_shift)(i) for i in windows)
 # window_shift(0.15)
 # print('For tuned down features of size 12')
