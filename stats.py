@@ -1,7 +1,7 @@
 from main import train_and_test_step, aggregate_and_pickle, \
         train_and_test_with, test_and_train_bots
 from utils import get_feature_labels, get_binetflow_files, \
-        get_saved_data, mask_features, get_classifier
+        get_saved_data, mask_features, get_classifier. get_feature_order
 from summarizer import Summarizer
 from sklearn.metrics import precision_recall_curve, auc
 from sklearn.metrics import accuracy_score, precision_score, recall_score
@@ -12,9 +12,7 @@ from binet_keras import keras_train_and_test
 import numpy as np
 import pickle
 import random
-from aggregator import aggregate_and_pickle_v2
 import matplotlib.pyplot as plt
-from bokeh.plotting import figure, output_file, show
 
 
 windows = [.15]  # , 1, 2, 5]
@@ -119,7 +117,6 @@ def kfold_test():
                     clf = get_classifier(ml)
                     xtrain, ytrain = feature[train], label[train]
                     xtest, ytest = feature[test], label[test]
-                    # scores = cross_val_score(clf, feature, label, cv=10, n_jobs=2)
                     clf.fit(xtrain, ytrain)
                     test_predicts = clf.predict(xtest)
                     test_score = accuracy_score(ytest, test_predicts)
@@ -153,10 +150,7 @@ def kfold_test():
 
 def bots_test():
     mls = ['dt', 'rf']
-    order = ['n_dports>1024', 'background_flow_count', 'n_s_a_p_address', 'avg_duration', 'n_s_b_p_address',
-             'n_sports<1024', 'n_sports>1024', 'n_conn', 'n_s_na_p_address', 'n_udp', 'n_icmp', 'n_d_na_p_address',
-             'n_d_a_p_address', 'n_s_c_p_address', 'n_d_c_p_address', 'normal_flow_count', 'n_dports<1024',
-             'n_d_b_p_address', 'n_tcp']
+    order = get_feature_order()
     bots = {
         'Neris': [1, 2, 9],
         'Rbot': [3, 4, 10, 11],
@@ -179,25 +173,11 @@ def bots_test():
         value_matrix = []
         features = []
         labels = []
-        """
-        for i, b in enumerate(binet_files):
-            summary = get_saved_data(window, b)
-            for s in summary:
-                classes = [0 for _ in range(len(bot))]
-                if s.is_attack:
-                    classes[bot_data[i]] = 1
-                    labels.append(classes)
-                    features.append([s.data[o] for o in order])
-            print(len(summary), len(features))
-        features = np.array(features)
-        labels = np.array(labels)
-        """
+
         with open('bot_features', 'rb') as f:
             features = pickle.load(f)
-            # pickle.dump(features, f, pickle.HIGHEST_PROTOCOL)
         with open('bot_labels.pk1', 'rb') as f:
             labels = pickle.load(f)
-            # pickle.dump(labels, f, pickle.HIGHEST_PROTOCOL)
         values = [bot]
         for ml in mls:
             r = test_and_train_bots(features, labels, ml)
@@ -281,15 +261,17 @@ def feature_plotting():
     plt.show()
 
 
-# Parallel(n_jobs=2)(delayed(run_files)(name, 0.15) for name in binet_files)
-# Parallel(n_jobs=2)(delayed(window_shift)(i) for i in windows)
-# window_shift(0.15)
-# print('For tuned down features of size 12')
-# print("70/30 split")
-# file_stats()
-# get_balance()
-# stats_on_best()
-# window_shift(.15)
-# kfold_test()
-# shuffle_data_test()
-feature_plotting()
+if __name__ == '__main__':
+    # Parallel(n_jobs=3)(delayed(run_files)(name, 0.15) for name in binet_files)
+    # Parallel(n_jobs=2)(delayed(window_shift)(i) for i in windows)
+    # window_shift(0.15)
+    # print('For tuned down features of size 12')
+    # print("70/30 split")
+    # file_stats()
+    # get_balance()
+    # stats_on_best()
+    # window_shift(.15)
+    # kfold_test()
+    # shuffle_data_test()
+    # feature_plotting()
+    pass

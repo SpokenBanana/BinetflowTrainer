@@ -17,7 +17,7 @@ class Binet_Keras():
         self.model.add(Dropout(0.5))
         self.model.add(Dense(self.out, activation='sigmoid'))
         self.model.compile(loss='binary_crossentropy', optimizer='rmsprop',
-                           metrics=['accuracy', 'precision', 'recall'])
+                           metrics=['accuracy'])
 
         self.model.fit(feat_train, label_train, nb_epoch=10, batch_size=32,
                        verbose=False)
@@ -51,5 +51,5 @@ def get_tf_model(dimension=19, out=1):
     model.add(Dropout(0.5))
     model.add(Dense(out, activation='sigmoid'))
     model.compile(loss='binary_crossentropy', optimizer='rmsprop',
-                       metrics=['accuracy', 'precision', 'recall'])
+                       metrics=['accuracy'])
     return model
