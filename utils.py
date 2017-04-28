@@ -36,6 +36,7 @@ def get_classifier(classifier):
     elif classifier == 'rf':
         # clf = RandomForestClassifier()
         clf = RandomForestClassifier(n_estimators=100,
+                                     max_features=None,
                                      criterion='entropy',
                                      n_jobs=2)
     else:
