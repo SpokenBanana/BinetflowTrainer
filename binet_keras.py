@@ -1,7 +1,22 @@
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
+from keras import backend as K
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import precision_score, recall_score
 
+
+def precision_fn(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
+
+def recall_fn(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
 
 class Binet_Keras():
 
@@ -10,16 +25,16 @@ class Binet_Keras():
 
     def train(self, feat_train, label_train, dimension=19):
         self.model = Sequential()
-        self.model.add(Dense(64, input_dim=dimension, init='uniform',
+        self.model.add(Dense(64, input_dim=dimension, kernel_initializer='uniform',
                        activation='relu'))
         self.model.add(Dropout(0.5))
         self.model.add(Dense(64, activation='relu'))
         self.model.add(Dropout(0.5))
         self.model.add(Dense(self.out, activation='sigmoid'))
         self.model.compile(loss='binary_crossentropy', optimizer='rmsprop',
-                           metrics=['accuracy'])
+                           metrics=['accuracy', precision_fn, recall_fn])
 
-        self.model.fit(feat_train, label_train, nb_epoch=10, batch_size=32,
+        self.model.fit(feat_train, label_train, epochs=10, batch_size=32,
                        verbose=False)
 
     def test(self, feat_test, label_test):
